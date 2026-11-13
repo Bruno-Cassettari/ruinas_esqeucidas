@@ -67,6 +67,15 @@ public static class ArteJogo
         }
     }
 
+    // Recortes nomeados usados nas fases (coordenadas no Tilesetv3).
+    public static Sprite Armadura => Recorte(0, 26, 2, 28);    // sentinela que patrulha
+    public static Sprite Relicario => Recorte(5, 42, 6, 43);   // caveira flutuante (sobe e desce)
+    public static Sprite Obelisco => Recorte(12, 10, 14, 13);  // inscrição
+    public static Sprite Lapide => Recorte(14, 10, 17, 13);
+    public static Sprite ArcoDePedra => Recorte(0, 31, 2, 34); // saída da fase
+    public static Sprite Luz => Recorte(5, 24, 7, 25);         // brilho âmbar
+    public static Sprite Viga => Tile(10, 10);                 // plataforma atravessável
+
     // ---------- Personagem ----------
     // Linhas da folha: 0 parado, 3 correndo, 5 pulando, 7 morte/dano.
 
