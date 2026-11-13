@@ -1,4 +1,4 @@
-# Ruínas Esquecidas — Etapa 4 (versão jogável parcial)
+# Ruínas Esquecidas — versão final
 
 Escopo do cronograma até 06/11: movimentação (corrida e pulo), colisões, obstáculos com dano, sistema de vida, menu e HUD básicos e a Fase 1 jogável. Sprites provisórios são gerados em código, sem nenhum asset.
 
@@ -43,7 +43,19 @@ Legenda do mapa: `#` sólido · `-` plataforma atravessável · `^` espinho · `
 | `Fases/AnimacaoSimples.cs` | João Pedro | Animação das tochas |
 | `Editor/ConfigurarArte.cs` | João Pedro | Importação das imagens como pixel art |
 
-## Ainda não feito (próximas semanas)
-- 09–13/11: Fases 2 e 3, telas de vitória e derrota
-- 16–20/11: arte final, parallax, áudio
-- 23–27/11: build WebGL e itch.io
+## Áudio e créditos de som
+- Trilha: "Ancient Ruins" — Ted Kerr 2017 (Wolfgang_ no OpenGameArt), CC-BY 3.0, crédito obrigatório (https://opengameart.org/content/ancient-ruins)
+- Efeitos: pulo e passagem de fase do pacote "RPG Audio"; dano de "Impact Sounds"; derrota de "Digital Audio"; vitória de "Music Jingles" — todos de Kenney (kenney.nl), CC0
+
+## Fontes
+- "Jersey 10" (títulos) e "Pixelify Sans" (HUD, botões e textos), Google Fonts, licença SIL Open Font License 1.1. Arquivos em `Assets/Resources/Fontes`, licenças em `Creditos/`.
+- Arquivos em `Assets/Resources/Audio`, tocados por `Sistemas/AudioJogo.cs` (João Pedro).
+
+## Créditos e estatísticas
+- Menu **Créditos**: equipe, professor e todos os assets com suas licenças (`Interface/MenuPrincipal.cs`).
+- Tela de vitória mostra o tempo da partida e o número de mortes; o melhor tempo fica salvo como recorde (`Sistemas/EstatisticasPartida.cs`, PlayerPrefs).
+
+## Builds
+- Menu **Ruínas Esquecidas → Gerar build WebGL (itch.io)**: gera `Builds/WebGL` (precisa do módulo "WebGL Build Support" no Unity Hub).
+- Menu **Ruínas Esquecidas → Gerar build Windows**: gera `Builds/Windows/RuinasEsquecidas.exe`.
+- Controles: A/D ou setas andam, Espaço/W pula, Esc ou P pausa.
