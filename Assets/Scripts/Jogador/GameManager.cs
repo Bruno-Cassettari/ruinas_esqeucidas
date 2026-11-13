@@ -2,22 +2,26 @@ using System.Collections;
 using UnityEngine;
 using UnityEngine.SceneManagement;
 
-// Controla o fluxo da cena "Jogo": monta a fase, cria o jogador e a câmera,
-// reinicia a fase quando o jogador morre e mostra a conclusão da fase.
-// Etapa 4: versão parcial, só com a Fase 1. Telas de vitória/derrota completas entram em 09-13/11.
+// Controla o fluxo da cena "Jogo": monta a fase atual, cria o jogador e a câmera,
+// e trata pausa, troca de fase, vitória (Coração de Aster) e derrota (vida zerada ou abismo).
 public class GameManager : MonoBehaviour
 {
     public static GameManager Instancia { get; private set; }
 
-    // Fase atual (0 = Fase 1). Estático para sobreviver ao recarregamento da cena.
+    // Fase atual (0, 1 ou 2). Estático para sobreviver ao recarregamento da cena.
     public static int faseAtual = 0;
 
     public const string CenaMenu = "Menu";
 
+    enum Estado { Jogando, Pausado, Vitoria, Derrota }
+    Estado estado = Estado.Jogando;
+
     PlayerController jogador;
     VidaJogador vida;
-    bool faseConcluida;
-    bool reiniciando;
+    AudioJogo audioJogo;
+    bool mostrarTelaFinal;
+    bool trocandoFase;
+    bool novoRecorde;
 
     void Awake()
     {
@@ -35,55 +39,97 @@ public class GameManager : MonoBehaviour
 
         jogador = CriarJogador(fase.inicioJogador);
         vida = jogador.GetComponent<VidaJogador>();
-        vida.AoMorrer += AoMorrer;
+        vida.AoMorrer += Derrota;
+
+        audioJogo = gameObject.AddComponent<AudioJogo>();
+        vida.AoLevarDano += audioJogo.Dano;
+        jogador.AoPular += audioJogo.Pulo;
 
         var hud = gameObject.AddComponent<HUD>();
         hud.vida = vida;
         hud.faseNumero = faseAtual + 1;
-        hud.totalFases = Fases.TotalPlanejado;
+        hud.totalFases = Fases.Todas.Length;
         hud.nomeFase = dados.nome;
 
         ConfigurarCamera(dados, fase.limites);
+    }
+
+    void Update()
+    {
+        // Cronômetro da partida: só conta com o jogo rodando (na pausa o timeScale é 0).
+        if (estado == Estado.Jogando && !trocandoFase) EstatisticasPartida.Somar(Time.deltaTime);
+
+        if (Entrada.Pausa())
+        {
+            if (estado == Estado.Jogando) { estado = Estado.Pausado; Time.timeScale = 0f; }
+            else if (estado == Estado.Pausado) Continuar();
+        }
     }
 
     // ---------- Fluxo ----------
 
     public void ConcluirFase()
     {
-        if (faseConcluida || reiniciando) return;
+        if (estado != Estado.Jogando || trocandoFase) return;
+        if (faseAtual >= Fases.Todas.Length - 1) { Vitoria(); return; }
 
-        if (faseAtual < Fases.Todas.Length - 1)
-        {
-            faseAtual++;
-            SceneManager.LoadScene(SceneManager.GetActiveScene().name);
-            return;
-        }
-
-        // Última fase disponível na versão parcial.
-        faseConcluida = true;
+        trocandoFase = true;
         jogador.Parar();
+        audioJogo.Passagem();
+        StartCoroutine(TrocarFaseDepois(0.6f));
+    }
+
+    IEnumerator TrocarFaseDepois(float segundos)
+    {
+        yield return new WaitForSeconds(segundos);
+        faseAtual++;
+        SceneManager.LoadScene(SceneManager.GetActiveScene().name);
+    }
+
+    public void Vitoria()
+    {
+        if (estado != Estado.Jogando) return;
+        estado = Estado.Vitoria;
+        jogador.Parar();
+        audioJogo.Vitoria();
+        novoRecorde = EstatisticasPartida.Concluir();
+        StartCoroutine(MostrarTelaDepois(1.2f));
+    }
+
+    void Derrota()
+    {
+        if (estado != Estado.Jogando) return;
+        estado = Estado.Derrota;
+        jogador.Parar();
+        audioJogo.Derrota();
+        EstatisticasPartida.RegistrarMorte();
+        StartCoroutine(MostrarTelaDepois(0.8f));
+    }
+
+    IEnumerator MostrarTelaDepois(float segundos)
+    {
+        yield return new WaitForSecondsRealtime(segundos);
+        mostrarTelaFinal = true;
         Time.timeScale = 0f;
     }
 
-    // Vida zerada ou queda no abismo: por enquanto a fase reinicia sozinha.
-    void AoMorrer()
+    void Continuar()
     {
-        if (reiniciando || faseConcluida) return;
-        reiniciando = true;
-        jogador.Parar();
-        StartCoroutine(ReiniciarDepois(1f));
-    }
-
-    IEnumerator ReiniciarDepois(float segundos)
-    {
-        yield return new WaitForSeconds(segundos);
-        ReiniciarFase();
+        estado = Estado.Jogando;
+        Time.timeScale = 1f;
     }
 
     void ReiniciarFase()
     {
         Time.timeScale = 1f;
         SceneManager.LoadScene(SceneManager.GetActiveScene().name);
+    }
+
+    void JogarNovamente()
+    {
+        faseAtual = 0;
+        EstatisticasPartida.Reiniciar();
+        ReiniciarFase();
     }
 
     void IrParaMenu()
@@ -188,18 +234,51 @@ public class GameManager : MonoBehaviour
         }
     }
 
-    // ---------- Tela de fase concluída ----------
+    // ---------- Telas: pausa, vitória e derrota ----------
 
     void OnGUI()
     {
         GUI.depth = 0;
-        if (!faseConcluida) return;
+        if (estado == Estado.Jogando) return;
         EstiloUI.AplicarEscala();
 
-        EstiloUI.Escurecer(new Color(0f, 0f, 0f, 0.8f));
-        EstiloUI.TextoCentral(170, "Fase 1 concluída!", EstiloUI.Titulo, 70);
-        EstiloUI.TextoCentral(245, "Versão parcial (Etapa 4) — as Fases 2 e 3 estão em desenvolvimento.", EstiloUI.TextoPequeno, 30);
-        if (EstiloUI.BotaoCentral(320, "Jogar novamente")) { faseAtual = 0; ReiniciarFase(); }
-        if (EstiloUI.BotaoCentral(390, "Menu inicial")) IrParaMenu();
+        if (estado == Estado.Pausado)
+        {
+            EstiloUI.Escurecer(new Color(0, 0, 0, 0.6f));
+            EstiloUI.TextoCentral(190, "Pausado", EstiloUI.Titulo, 90);
+            if (EstiloUI.BotaoCentral(320, "Continuar")) Continuar();
+            if (EstiloUI.BotaoCentral(390, "Menu inicial")) IrParaMenu();
+            return;
+        }
+
+        if (!mostrarTelaFinal) return;
+
+        if (estado == Estado.Vitoria)
+        {
+            EstiloUI.Escurecer(new Color(0.08f, 0.05f, 0.02f, 0.88f));
+            EstiloUI.TextoCentral(95, "Artefato encontrado!", EstiloUI.Titulo, 90);
+            EstiloUI.TextoCentral(195, "\"Elias... se você chegou até aqui, então as ruínas finalmente encontraram alguém para lembrar.\"", EstiloUI.Texto, 80);
+            EstiloUI.TextoCentral(285, "Algumas histórias não desaparecem. Apenas esperam alguém para encontrá-las.", EstiloUI.TextoPequeno, 40);
+
+            // Resultado da partida e recorde salvo.
+            EstiloUI.TextoCentral(335, $"Concluído em {EstatisticasPartida.Formatar(EstatisticasPartida.Tempo)} · {EstatisticasPartida.TextoMortes()}", EstiloUI.Texto, 32);
+            if (novoRecorde)
+                EstiloUI.TextoCentral(368, "Novo recorde!", EstiloUI.TextoDestaque, 28);
+            else
+                EstiloUI.TextoCentral(368, $"Recorde: {EstatisticasPartida.Formatar(EstatisticasPartida.Recorde)}", EstiloUI.TextoPequeno, 28);
+
+            if (EstiloUI.BotaoCentral(420, "Jogar novamente")) JogarNovamente();
+            if (EstiloUI.BotaoCentral(490, "Menu inicial")) IrParaMenu();
+        }
+        else if (estado == Estado.Derrota)
+        {
+            EstiloUI.Escurecer(new Color(0f, 0f, 0f, 0.88f));
+            var estilo = new GUIStyle(EstiloUI.Titulo);
+            estilo.normal.textColor = EstiloUI.Texto.normal.textColor;
+            EstiloUI.TextoCentral(165, "Você não resistiu...", estilo, 90);
+            EstiloUI.TextoCentral(255, $"Fase {faseAtual + 1}: {Fases.Todas[faseAtual].nome}", EstiloUI.TextoPequeno, 30);
+            if (EstiloUI.BotaoCentral(340, "Tentar novamente")) ReiniciarFase();
+            if (EstiloUI.BotaoCentral(410, "Menu inicial")) IrParaMenu();
+        }
     }
 }

@@ -5,7 +5,7 @@ using UnityEngine.InputSystem;
 
 // Leitura de teclado/controle. Funciona tanto com o Input System novo
 // (padrão do Unity 6) quanto com o Input Manager antigo.
-// Controles: A/D ou setas para andar, Espaço/W/seta para cima para pular, Esc para pausar.
+// Controles: A/D ou setas para andar, Espaço/W/seta para cima para pular, Esc ou P para pausar.
 public static class Entrada
 {
     public static float Horizontal()
@@ -61,9 +61,9 @@ public static class Entrada
 #if ENABLE_INPUT_SYSTEM
         var k = Keyboard.current;
         var g = Gamepad.current;
-        return (k != null && k.escapeKey.wasPressedThisFrame) || (g != null && g.startButton.wasPressedThisFrame);
+        return (k != null && (k.escapeKey.wasPressedThisFrame || k.pKey.wasPressedThisFrame)) || (g != null && g.startButton.wasPressedThisFrame);
 #else
-        return Input.GetKeyDown(KeyCode.Escape);
+        return Input.GetKeyDown(KeyCode.Escape) || Input.GetKeyDown(KeyCode.P); // P: no navegador o Esc sai da tela cheia
 #endif
     }
 }
